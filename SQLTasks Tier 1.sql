@@ -32,11 +32,13 @@ exploring the data, and getting acquainted with the 3 tables. */
 /* QUESTIONS 
 /* Q1: Some of the facilities charge a fee to members, but some do not.
 Write a SQL query to produce a list of the names of the facilities that do. */
+
 SELECT name,facid,membercost FROM `Facilities` 
 where membercost > 0
 
 
 /* Q2: How many facilities do not charge a fee to members? */
+
 SELECT count(*) FROM `Facilities` 
 where membercost < 1
 
@@ -46,11 +48,13 @@ where membercost < 1
 where the fee is less than 20% of the facility's monthly maintenance cost.
 Return the facid, facility name, member cost, and monthly maintenance of the
 facilities in question. */
+
 SELECT facid,name,membercost,monthlymaintenance FROM `Facilities` 
 where membercost > 0 and membercost < monthlymaintenance *.2
 
 /* Q4: Write an SQL query to retrieve the details of facilities with ID 1 and 5.
 Try writing the query without using the OR operator. */
+
 SELECT * FROM Facilities
 WHERE name LIKE '%2'
 
@@ -59,6 +63,7 @@ WHERE name LIKE '%2'
 'cheap' or 'expensive', depending on if their monthly maintenance cost is
 more than $100. Return the name and monthly maintenance of the facilities
 in question. */
+
 SELECT name,`monthlymaintenance`, 
 case when (`monthlymaintenance` > 100) then 'expensive'
 when (`monthlymaintenance` < 100) then 'cheap'
@@ -69,6 +74,7 @@ FROM Facilities
 
 /* Q6: You'd like to get the first and last name of the last member(s)
 who signed up. Try not to use the LIMIT clause for your solution. */
+
 SELECT surname,firstname,min(joindate)
 FROM `Members` 
 
@@ -76,6 +82,7 @@ FROM `Members`
 Include in your output the name of the court, and the name of the member
 formatted as a single column. Ensure no duplicate data, and order by
 the member name. */
+
 SELECT distinct(Bookings.memid),Members.surname,Members.firstname FROM `Bookings`
 inner join Facilities
 on Bookings.facid = Facilities.facid
@@ -91,6 +98,7 @@ different costs to members (the listed costs are per half-hour 'slot'), and
 the guest user's ID is always 0. Include in your output the name of the
 facility, the name of the member formatted as a single column, and the cost.
 Order by descending cost, and do not use any subqueries. */
+
 SELECT b.memid, CONCAT(m.firstname, ' ', m.surname),
 case
 	when (b.memid = 0) then f.guestcost*slots
@@ -107,6 +115,7 @@ having total_booking_cost > 30
 order by total_booking_cost desc
 
 /* Q9: This time, produce the same result as in Q8, but using a subquery. */
+
 SELECT b.memid, CONCAT(m.firstname, ' ', m.surname),
 case
 	when (b.memid = 0) then f.guestcost*slots
@@ -145,11 +154,47 @@ QUESTIONS:
 The output of facility name and total revenue, sorted by revenue. Remember
 that there's a different cost for guests and members! */
 
+SELECT *, SUM(total_booking_cost) as revenue
+FROM (SELECT f.name, f.facid,
+        case
+            when (b.memid = 0) then f.guestcost*slots
+            when (b.memid > 0) then f.membercost*slots
+        else '0'
+        END as total_booking_cost
+        FROM `Bookings` b
+        inner join Facilities f
+        on b.facid = f.facid
+        inner join Members m
+        on m.memid = b.memid
+        order by f.facid)
+GROUP BY facid
+having revenue < 1000
+
 /* Q11: Produce a report of members and who recommended them in alphabetic surname,firstname order */
+
+SELECT m.memid as ambassador_id, m.firstname || ' ' || m.surname as ambassador,
+mm.firstname || ' ' || mm.surname as signup, mm.memid as signup_id
+FROM Members m, Members mm
+WHERE m.memid = mm.recommendedby
+order by m.surname
 
 
 /* Q12: Find the facilities with their usage by member, but not guests */
 
+SELECT b.facid, f.name, SUM(slots) as slots_booked_mem_only
+FROM Bookings b
+inner join Facilities f
+on b.facid = f.facid
+where memid > 0
+group by b.facid
+
 
 /* Q13: Find the facilities usage by month, but not guests */
 
+SELECT name, month, count(name) as monthly_mem_usage
+FROM (SELECT b.facid, f.name, b.starttime, b.memid, strftime('%m',b.starttime) as month
+FROM Bookings b
+inner join Facilities f
+on b.facid = f.facid
+where b.memid > 0)
+group by month, name
